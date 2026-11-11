@@ -1,0 +1,55 @@
+# Verification Specification — Mini RV32I CPU (rv32i_cpu)
+
+## 1. DUT scope
+The DUT is the fixed RTL module `rv32i_cpu` verified at block level. It is a 32-bit, single-cycle educational CPU implementing a subset of RV32I. This specification describes intended behavior for assertion generation; confirm each property against the RTL and ISA details before treating it as authoritative.
+
+## 2. Ports
+- Inputs: `clk`, `rst_n` (synchronous active-low reset), `instr[31:0]` (instruction supplied by external instruction memory), `data_rdata[31:0]` (data-memory read value).
+- Outputs: `pc[31:0]`, `data_addr[31:0]`, `data_we`, `data_wdata[31:0]`, `halted`.
+- Instruction fetch and data reads are combinational. Data writes are synchronous and occur on the active clock edge when `data_we` is asserted, subject to the RTL's write control.
+- There is no valid/ready/ack handshake.
+
+## 3. Reset and FSM
+- FSM states: `ST_RESET`, `ST_RUN`, `ST_HALT`.
+- Reset is synchronous and active low: while `rst_n` is low at a rising edge, the CPU enters/reset-holds its reset state and initializes architectural state as implemented.
+- After reset release, the CPU proceeds to `ST_RUN` and begins executing from its reset PC (expected address 0; verify exact RTL behavior).
+- Executing EBREAK transitions the CPU to `ST_HALT`; `halted` indicates the halted condition.
+- Once halted, the CPU should remain halted until reset. Do not assume internal state encodings beyond those listed without checking the RTL.
+
+## 4. Architectural state
+- 32 general-purpose registers, x0 through x31, each 32 bits wide.
+- x0 is hardwired to zero; writes targeting x0 must not change its value.
+- Register and PC updates commit on rising clock edges during `ST_RUN`, according to the decoded instruction.
+- PC normally advances by 4 for sequential execution. Control-flow instructions may change the next PC.
+
+## 5. Supported instruction subset
+U-type: LUI, AUIPC.
+J-type: JAL, JALR.
+Branches: BEQ, BNE.
+Loads: LB, LH, LW, LBU, LHU.
+Stores: SB, SH, SW are decoded as stores; current datapath is word-oriented and byte/halfword write masking is not implemented.
+Immediate ALU: ADDI, SLTI, SLTIU, XORI, ORI, ANDI, SLLI, SRLI, SRAI.
+Register ALU: ADD, SUB, SLL, SLT, SLTU, XOR, SRL, SRA, OR, AND.
+EBREAK is treated as HALT.
+
+## 6. Memory behavior
+- Instruction memory is external to this block-level DUT. The environment supplies `instr` corresponding to the current `pc` (combinational fetch).
+- Data memory is external. The DUT presents `data_addr`; the environment supplies `data_rdata` for reads.
+- For stores, the DUT presents `data_we`, `data_addr`, and `data_wdata`. The environment commits the write synchronously at the rising edge according to the interface timing.
+- Memory addressing/alignment and load sign/zero extension should be checked against the RTL implementation and intended RV32I subset.
+
+## 7. Illegal/unsupported instructions
+The educational core's documented behavior is that an illegal opcode is treated as a no-op (no crash, no unintended register write); verify the exact decoder coverage and behavior in RTL. Do not infer behavior for every unsupported funct3/funct7 combination unless specified by the implementation.
+
+## 8. Candidate assertion targets
+- Reset: reset state/PC and architectural initialization hold under synchronous active-low reset.
+- FSM: legal state transitions; ST_HALT remains halted until reset.
+- x0: register x0 remains zero.
+- PC: sequential instructions advance PC by 4; branches/jumps follow their computed targets.
+- Stores: write controls/address/data are consistent with decoded store instructions and writes occur on the specified edge.
+- Loads: destination register receives the correctly extended data-memory value.
+- EBREAK: causes halt and prevents further normal execution.
+- ALU: arithmetic/logical results match operation and operands.
+
+## 9. Verification caveats
+Assertions must account for synchronous reset and the single-cycle combinational datapath. Avoid asserting a property based only on opcode without accounting for FSM state, instruction timing, or reset. Some checks require a reference model or hierarchical access to internal state. A verification-only build with `instr` declared as `input` is required specifically for this standalone testbench, since a driver cannot feed a value into a port declared `output` through a normal connection. The full-chip RTL (with `instr` as `output`) is unaffected and correct as-is -- see EXPLANATION.md Part 2's follow-up correction.

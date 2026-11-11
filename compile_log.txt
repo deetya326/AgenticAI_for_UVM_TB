@@ -1,0 +1,18 @@
+Questa Altera Starter FPGA Edition-64 vlog 2025.2 Compiler 2025.05 May 31 2025
+Start time: 17:14:38 on Sep 26,2026
+vlog -sv -mfcu -cuname rv32i_cpu_demo -l .\generated_output\compile.log .\alu.sv .\control_unit.sv .\register_file.sv .\dual_port_ram.sv .\rv32i_cpu.sv .\mini_cpu_top.sv .\tb_mini_cpu.sv .\generated_output\rv32i_cpu_assertions.sv 
+** Note: (vlog-220) 'C:/altera/25.1std/questa_fse/win64/../modelsim.ini' is used as the ini file.
+-- Compiling module alu
+-- Compiling module control_unit
+-- Compiling module register_file
+-- Compiling module dual_port_ram
+-- Compiling module rv32i_cpu
+-- Compiling module mini_cpu_top
+-- Compiling module tb_mini_cpu
+-- Compiling module rv32i_cpu_assertions
+-- Compiling package rv32i_cpu_demo
+
+Top level modules:
+	tb_mini_cpu
+End time: 17:14:39 on Sep 26,2026, Elapsed time: 0:00:01
+Errors: 0, Warnings: 0
